@@ -15,6 +15,12 @@
 ```python
 conda install --yes --file requirements.txt
 ```
+
+### C++ build
+cmake -B build -S . -G "Visual Studio 16 2019"
+cmake --build build --config Debug
+cmake --build build --config Release
+
 ### 使用/Use
 ```python
 if __name__ == '__main__':
