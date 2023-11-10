@@ -19,7 +19,7 @@ import PIL.Image as pil
 import cv2
 import numpy as np
 from osgeo import gdal, osr
-
+import os
 
 # ------------------Interchange between WGS-84 and Web Mercator-------------------------
 # WGS-84 to Web Mercator
@@ -172,43 +172,6 @@ def tile_to_pixls(zb):
     return out
 
 
-# -----------------------------------------------------------
-
-# ---------------------------------------------------------
-class Downloader(Thread):
-    # multiple threads downloader
-    def __init__(self, index, count, urls, datas):
-        # index represents the number of threads
-        # count represents the total number of threads
-        # urls represents the list of URLs nedd to be downloaded
-        # datas represents the list of data need to be returned.
-        super().__init__()
-        self.urls = urls
-        self.datas = datas
-        self.index = index
-        self.count = count
-
-    def download(self, url):
-        HEADERS = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36 Edg/88.0.705.68'}
-        header = ur.Request(url, headers=HEADERS)
-        err = 0
-        while (err < 3):
-            try:
-                data = ur.urlopen(header).read()
-            except:
-                err += 1
-            else:
-                return data
-        raise Exception("Bad network link.")
-
-    def run(self):
-        for i, url in enumerate(self.urls):
-            if i % self.count != self.index:
-                continue
-            self.datas[i] = self.download(url)
-
-
 # ---------------------------------------------------------
 
 # ---------------------------------------------------------
@@ -228,6 +191,42 @@ def getExtent(x1, y1, x2, y2, z, source="Google China"):
         raise Exception("Invalid argument: source.")
     return Xframe
 
+# -----------------------------------------------------------
+
+# ---------------------------------------------------------
+class Downloader(Thread):
+    # multiple threads downloader
+    def __init__(self, index, count, urls, datas):
+        # index represents the number of threads
+        # count represents the total number of threads
+        # urls represents the list of URLs nedd to be downloaded
+        # datas represents the list of data need to be returned.
+        super().__init__()
+        self.urls = urls
+        self.datas = datas
+        self.index = index
+        self.count = count
+
+    def download(self, url):
+        print(url)
+        HEADERS = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36 Edg/88.0.705.68'}
+        header = ur.Request(url, headers=HEADERS)
+        err = 0
+        while (err < 3):
+            try:
+                data = ur.urlopen(header).read()
+            except:
+                err += 1
+            else:
+                return data
+        raise Exception("Bad network link.")
+
+    def run(self):
+        for i, url in enumerate(self.urls):
+            if i % self.count != self.index:
+                continue
+            self.datas[i] = self.download(url)
 
 def saveTiff(r, g, b, gt, filePath):
     fname_out = filePath
@@ -295,7 +294,7 @@ def merge_tiles(datas, x1, y1, x2, y2, z):
     return outpic
 
 
-def download_tiles(urls, multi=10):
+def download_tiles(urls, multi=17):
     url_len = len(urls)
     datas = [None] * url_len
     if multi < 1 or multi > 20 or not isinstance(multi, int):
@@ -358,6 +357,8 @@ def main(left, top, right, bottom, zoom, filePath, style='s', server="Google Chi
     # Combine downloaded tile maps into one map
     outpic = merge_tiles(result, left, top, right, bottom, zoom)
     outpic = outpic.convert('RGB')
+    print(outpic)
+    # outpic.save("output4.jpg", quality=95)
     r, g, b = cv2.split(np.array(outpic))
 
     # Get the spatial information of the four corners of the merged map and use it for outputting
@@ -367,11 +368,20 @@ def main(left, top, right, bottom, zoom, filePath, style='s', server="Google Chi
     saveTiff(r, g, b, gt, filePath)
 
 
+# gdal安装及验证:https://github.com/domlysz/BlenderGIS/wiki/How-to-install-GDAL
+
 # ---------------------------------------------------------
 if __name__ == '__main__':
+
+    os.environ['PROJ_LIB'] = r'G:\ProgramData\miniconda3\envs\gmap\Library\share\proj'
+    os.environ['GDAL_DATA'] = r'G:\ProgramData\miniconda3\envs\gmap\Library\share'  # 设置proj库的路径
+    #os.environ['PROJ_LIB'] = r'G:\ProgramData\miniconda3\envs\gmap\Library\share'  # 设置proj库的路径
+    #os.environ['GDAL_DATA'] = r'G:\ProgramData\miniconda3\envs\gmap\Library\bin\gdal-data'  # 设置GDAL数据路径
+    os.environ['PATH'] = r'G:\ProgramData\miniconda3\envs\gmap\Library\bin;' + os.environ['PATH']  # 将GDAL二进制文件的路径添加到PATH中
+    
     start_time = time.time()
 
-    main(100.361, 38.866, 100.386, 38.839, 13, r'D:\Documents\Temp\test.tif', server="Google")
+    main(114.40, 30.46, 114.46, 30.40, 19, r'G:\test19.tif', server="Google")
 
     end_time = time.time()
     print('lasted a total of {:.2f} seconds'.format(end_time - start_time))
